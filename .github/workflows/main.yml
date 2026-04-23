@@ -1,0 +1,30 @@
+name: Update Torongo+ Playlist
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch API & Generate M3U
+        run: |
+          TIMESTAMP=$(date +%s%3N)
+          URL="https://api.ovation-bdofficial.workers.dev/database.json?nocache=$TIMESTAMP"
+
+          curl -s "$URL" -o data.json
+          python3 generate_m3u.py
+
+      - name: Commit & Push
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add torongo_plus.m3u
+          git commit -m "Auto update playlist" || echo "No changes"
+          git push
