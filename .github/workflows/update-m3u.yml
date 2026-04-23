@@ -69,8 +69,15 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+          echo "Checking git status before commit:"
+          git status
+
           git add torongo_plus.m3u
 
-          git commit -m "Auto update playlist $(date)" || echo "No changes to commit"
+          echo "Git status after add:"
+          git status
 
-          git push
+          git commit -m "Auto update playlist $(date)" && git push || echo "No changes or push failed"
+
+          echo "Git push status:"
+          git status
