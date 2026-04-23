@@ -18,18 +18,42 @@ jobs:
         with:
           persist-credentials: true
 
-      - name: Fetch API & Generate M3U
+      - name: Fetch API (with headers)
         run: |
           TIMESTAMP=$(date +%s%3N)
           URL="https://api.ovation-bdofficial.workers.dev/database.json?nocache=$TIMESTAMP"
 
-          curl -s "$URL" -o data.json
+          echo "Fetching from $URL"
+
+          curl -s \
+            -H "Origin: https://torongoplus.vercel.app" \
+            -H "Referer: https://torongoplus.vercel.app/" \
+            -H "User-Agent: Mozilla/5.0" \
+            "$URL" -o data.json
+
+      - name: Debug API response
+        run: |
+          echo "---- DEBUG JSON ----"
+          head -n 20 data.json
+          echo "--------------------"
+
+      - name: Generate M3U
+        run: |
           python3 generate_m3u.py
+
+      - name: Show generated file
+        run: |
+          echo "---- M3U PREVIEW ----"
+          head -n 20 torongo_plus.m3u
+          echo "---------------------"
 
       - name: Commit & Push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
           git add torongo_plus.m3u
-          git commit -m "Auto update playlist" || echo "No changes"
-          git push origin HEAD:main
+
+          git commit -m "Auto update playlist $(date)" || echo "No changes"
+
+          git push
