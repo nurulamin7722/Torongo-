@@ -72,15 +72,32 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          echo "Checking git status before commit:"
-          git status
+          # Check file sizes
+          echo "File sizes before commit:"
+          ls -lh data.json torongo_plus.m3u
+
+          # Check if file has content
+          if [ ! -s torongo_plus.m3u ]; then
+            echo "ERROR: M3U file is empty!"
+            exit 1
+          fi
+
+          FILE_SIZE=$(wc -c < torongo_plus.m3u)
+          echo "M3U file size: $FILE_SIZE bytes"
+
+          if [ $FILE_SIZE -lt 1000 ]; then
+            echo "WARNING: M3U file seems too small"
+          fi
 
           git add torongo_plus.m3u
 
-          echo "Git status after add:"
-          git status
+          # Check what's staged
+          echo "Staged changes:"
+          git diff --cached --stat
 
-          git commit -m "Auto update playlist $(date)" && git push || echo "No changes or push failed"
-
-          echo "Git push status:"
-          git status
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto update playlist $(date)"
+            git push
+          fi
