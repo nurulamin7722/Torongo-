@@ -35,11 +35,27 @@ jobs:
             -H "Origin: https://torongoplus.vercel.app" \
             -H "Referer: https://torongoplus.vercel.app/" \
             -H "User-Agent: Mozilla/5.0" \
-            "$URL" -o data.json
+            "$URL" -o data.json || {
+            echo "⚠ API fetch failed, attempting alternative..."
+            # Try without the -f flag to see response
+            curl -s \
+              -H "Origin: https://torongoplus.vercel.app" \
+              -H "Referer: https://torongoplus.vercel.app/" \
+              "$URL" -o data.json || true
+          }
 
-          if [ ! -s data.json ]; then
-            echo "ERROR: Failed to fetch or empty response"
-            exit 1
+          # Check if we got valid data
+          if [ -s data.json ] && grep -q '"channels"' data.json; then
+            CHANNEL_COUNT=$(python3 -c "import json; print(len(json.load(open('data.json')).get('channels', [])))" 2>/dev/null || echo "0")
+            echo "✓ API fetch successful - got $CHANNEL_COUNT channels"
+          else
+            echo "⚠ API returned invalid/empty data, using cached version if available..."
+            if [ ! -f .github/data-cache.json ]; then
+              echo "ERROR: No cached data available and API fetch failed"
+              exit 1
+            fi
+            cp .github/data-cache.json data.json
+            echo "✓ Using cached data"
           fi
 
       - name: Validate JSON
@@ -51,6 +67,11 @@ jobs:
           fi
           echo "✓ Valid JSON received"
           python3 -c "import json; data = json.load(open('data.json')); print(f'Channels found: {len(data.get(\"channels\", []))}')"
+          
+          # Cache successful API response for future fallback
+          mkdir -p .github
+          cp data.json .github/data-cache.json
+          echo "✓ Cached data for fallback"
 
       - name: Generate M3U
         run: |
