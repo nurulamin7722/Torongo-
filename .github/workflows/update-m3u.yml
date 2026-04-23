@@ -60,13 +60,18 @@ jobs:
 
       - name: Validate JSON
         run: |
+          echo "Checking data.json..."
+          ls -lh data.json
+          
           python3 -m json.tool data.json > /dev/null 2>&1
           if [ $? -ne 0 ]; then
             echo "ERROR: Invalid JSON in data.json"
             exit 1
           fi
           echo "✓ Valid JSON received"
-          python3 -c "import json; data = json.load(open('data.json')); print(f'Channels found: {len(data.get(\"channels\", []))}')"
+          
+          CHANNEL_COUNT=$(python3 -c "import json; print(len(json.load(open('data.json')).get('channels', [])))")
+          echo "Channels found: $CHANNEL_COUNT"
           
           # Cache successful API response for future fallback
           mkdir -p .github
@@ -93,9 +98,18 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check file sizes
-          echo "File sizes before commit:"
-          ls -lh data.json torongo_plus.m3u
+          echo "=== DEBUG INFO ==="
+          echo "Checking files..."
+          ls -lh torongo_plus.m3u data.json
+          
+          echo "=== Repo version ==="
+          git show HEAD:torongo_plus.m3u | head -3
+          
+          echo "=== Generated version ==="
+          head -3 torongo_plus.m3u
+          
+          echo "=== Git diff ==="
+          git diff --no-pager torongo_plus.m3u | head -50 || echo "No diff found"
 
           # Check if file has content
           if [ ! -s torongo_plus.m3u ]; then
@@ -110,10 +124,6 @@ jobs:
             echo "WARNING: M3U file seems too small"
           fi
 
-          # Get checksums before and after to verify file was truly updated
-          REPO_CHECKSUM=$(md5sum torongo_plus.m3u | awk '{print $1}')
-          echo "Generated M3U checksum: $REPO_CHECKSUM"
-          
           # Create metadata file to ensure commit is always made
           TIMESTAMP=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
           echo "$TIMESTAMP" > .last-update
@@ -122,7 +132,7 @@ jobs:
           git add torongo_plus.m3u .last-update
 
           # Check what's staged
-          echo "Staged changes:"
+          echo "=== Staged changes ==="
           git diff --cached --stat
 
           # Commit with timestamp
